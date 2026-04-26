@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1108">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.json">
+<title>Mis Retos</title>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(r => { console.log('✅ SW registrado, app lista offline'); })
+        .catch(e => console.log('SW error:', e));
+    });
+  }
+</script>
+
+<style>
+  :root {
+    --fd: 'Georgia', serif;
+    --fb: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    --bg:    #0f0b06;
+    --bg2:   #1a1108;
+    --bg3:   #241a0d;
+    --bg4:   #2e2211;
+    --amber: #f59e0b;
+    --fire:  #ea580c;
+    --green: #22c55e;
+    --green2:#16a34a;
+    --red:   #ef4444;
+    --red2:  #dc2626;
+    --text:  #fef3c7;
+    --text2: #d97706;
+    --muted: #78716c;
+    --bord:  #3d2e1a;
+    --r:     16px;
+    --rs:    10px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { font-family:var(--fb); background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; padding-bottom:90px; }
+
+  /* HEADER */
+  .hdr { background:linear-gradient(180deg,var(--bg2),transparent); padding:20px 20px 12px; position:sticky; top:0; z-index:100; backdrop-filter:blur(10px); }
+  .hdr-title { font-family:var(--fd); font-size:26px; font-weight:900; background:linear-gradient(135deg,var(--amber),var(--fire)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .hdr-date { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+
+  /* NAV */
+  .nav { position:fixed; bottom:0; left:0; right:0; background:var(--bg2); border-top:1px solid var(--bord); display:flex; z-index:200; padding-bottom:env(safe-area-inset-bottom); }
+  .nb { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:11px 4px; border:none; background:transparent; color:var(--muted); font-family:var(--fb); font-size:10px; font-weight:500; cursor:pointer; }
+  .nb.active { color:var(--amber); }
+  .ni { font-size:20px; line-height:1; }
+
+  /* SCREENS */
+  .sc { display:none; padding:0 16px; animation:fi .25s ease; }
+  .sc.active { display:block; }
+  @keyframes fi { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  /* CARD */
+  .card { background:var(--bg2); border:1px solid var(--bord); border-radius:var(--r); padding:18px; margin-bottom:14px; }
+  .card-t { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:var(--text2); margin-bottom:12px; }
+  .sec-t { font-family:var(--fd); font-size:20px; font-weight:700; color:var(--text); margin:20px 0 12px; }
+
+  /* CHALLENGE CARD */
+  .chcard { background:var(--bg3); border:1px solid var(--bord); border-radius:var(--r); padding:16px; margin-bottom:12px; cursor:pointer; transition:transform .2s; position:relative; overflow:hidden; }
+  .chcard::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; background:linear-gradient(90deg,var(--amber),var(--fire)); }
+  .chcard:active { transform:scale(.98); }
+  .chh { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .che { font-size:28px; line-height:1; }
+  .chi { flex:1; }
+  .chn { font-family:var(--fd); font-size:17px; font-weight:700; margin-bottom:3px; }
+  .chs { font-size:12px; line-height:1.4; }
+  .chst { display:flex; gap:12px; margin-top:14px; padding-top:12px; border-top:1px solid var(--bord); }
+  .sti { flex:1; text-align:center; }
+  .stv { font-family:var(--fd); font-size:22px; font-weight:700; color:var(--amber); display:block; line-height:1; }
+  .stl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-top:3px; display:block; }
+
+  /* PROGRESS */
+  .pw { background:var(--bg3); border-radius:100px; height:8px; overflow:hidden; margin-top:8px; }
+  .pb { height:100%; background:linear-gradient(90deg,var(--amber),var(--fire)); border-radius:100px; transition:width .6s; }
+  .pl { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:5px; }
+
+  /* STREAK */
+  .sbadge { display:inline-flex; align-items:center; gap:4px; background:linear-gradient(135deg,rgba(245,158,11,.2),rgba(234,88,12,.2)); border:1px solid rgba(245,158,11,.3); border-radius:100px; padding:4px 10px; font-size:12px; font-weight:600; color:var(--amber); }
+
+  /* ═══ LOS BOTONES CUMPLIÓ / NO CUMPLIÓ — núcleo de la app ═══ */
+  .log-row { display:flex; gap:10px; }
+  .log-btn {
+    flex:1; padding:16px 10px; border-radius:var(--rs); border:2px solid transparent;
+    font-family:var(--fb); font-size:15px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:all .2s; line-height:1.2; text-align:center;
+  }
+  .lb-ok  { background:rgba(34,197,94,.1);  border-color:var(--green2); color:var(--green); }
+  .lb-ko  { background:rgba(239,68,68,.1);  border-color:var(--red2);   color:var(--red);   }
+  .lb-ok.sel { background:var(--green2); color:#fff; border-color:var(--green2); }
+  .lb-ko.sel { background:var(--red2);   color:#fff; border-color:var(--red2);   }
+  .log-btn:active { transform:scale(.95); }
+
+  /* CALENDAR */
+  .calh { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .calnb { background:var(--bg3); border:1px solid var(--bord); border-radius:8px; width:36px; height:36px; color:var(--text); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .calm { font-family:var(--fd); font-size:18px; font-weight:700; text-transform:capitalize; }
+  .calw { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:6px; }
+  .calwd { text-align:center; font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; padding:4px 0; }
+  .calg { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cd { aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; border:1px solid transparent; position:relative; }
+  .cd:active { transform:scale(.88); }
+  .cd.emp { pointer-events:none; }
+  .cd.fut { color:var(--bg4); pointer-events:none; }
+  .cd.avl { background:var(--bg3); color:var(--muted); border-color:var(--bord); }
+  .cd.ok  { background:rgba(34,197,94,.2);  color:var(--green); border-color:var(--green2); }
+  .cd.ko  { background:rgba(239,68,68,.15); color:var(--red);   border-color:var(--red2);   }
+  .cd.tod { border-color:var(--amber)!important; box-shadow:0 0 0 2px rgba(245,158,11,.25); }
+  .cd.tod.avl { background:rgba(245,158,11,.1); color:var(--amber); }
+  /* punto de nota en el día */
+  .ndot { position:absolute; bottom:2px; right:2px; width:5px; height:5px; border-radius:50%; background:var(--amber); }
+
+  /* LEGEND */
+  .leg { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+  .legi { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .legd { width:10px; height:10px; border-radius:3px; }
+
+  /* WEEK STRIP */
+  .ws { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .ws::-webkit-scrollbar { display:none; }
+  .wdi { flex:0 0 auto; width:40px; display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 0; }
+  .wdl { font-size:9px; font-weight:600; color:var(--muted); text-transform:uppercase; }
+  .wdn { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; position:relative; }
+  .wdn.ok  { background:rgba(34,197,94,.2);  color:var(--green); }
+  .wdn.ko  { background:rgba(239,68,68,.15); color:var(--red); }
+  .wdn.tod { background:rgba(245,158,11,.15); color:var(--amber); border:1px solid var(--amber); }
+  .wdn.emp { color:var(--bg4); }
+  .wndot { position:absolute; bottom:1px; right:1px; width:5px; height:5px; border-radius:50%; background:var(--amber); }
+
+  /* STATS GRID */
+  .sg { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .sc2 { background:var(--bg3); border:1px solid var(--bord); border-radius:var(--rs); padding:14px; text-align:center; }
+  .sc2 .bn { font-family:var(--fd); font-size:32px; font-weight:700; color:var(--amber); line-height:1; display:block; }
+  .sc2 .sl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; display:block; }
+
+  /* FORMS */
+  .fg { margin-bottom:16px; }
+  .fl { display:block; font-size:12px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .fi, .fta { width:100%; background:var(--bg3); border:1px solid var(--bord); border-radius:var(--rs); padding:12px 14px; color:var(--text); font-family:var(--fb); font-size:15px; outline:none; transition:border-color .2s; }
+  .fi:focus, .fta:focus { border-color:var(--amber); }
+  .fta { min-height:90px; resize:none; }
+
+  /* EMOJI */
+  .eg { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:4px; }
+  .eo { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:22px; background:var(--bg3); border-radius:10px; border:2px solid transparent; cursor:pointer; transition:all .15s; }
+  .eo:active { transform:scale(.9); }
+  .eo.sel { border-color:var(--amber); background:rgba(245,158,11,.15); }
+
+  /* PILLS */
+  .pills { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; margin-bottom:14px; }
+  .pills::-webkit-scrollbar { display:none; }
+  .pill { flex:0 0 auto; padding:6px 14px; border-radius:100px; border:1px solid var(--bord); background:var(--bg3); color:var(--muted); font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; font-family:var(--fb); }
+  .pill.active { background:rgba(245,158,11,.15); border-color:var(--amber); color:var(--amber); }
+
+  /* BUTTONS */
+  .btn { width:100%; padding:15px; background:linear-gradient(135deg,var(--amber),var(--fire)); border:none; border-radius:var(--rs); color:#1a0a00; font-family:var(--fb); font-size:16px; font-weight:700; cursor:pointer; margin-top:8px; }
+  .btn:active { opacity:.9; transform:scale(.98); }
+  .btn-sec { padding:12px 16px; background:var(--bg3); border:1px solid var(--bord); border-radius:var(--rs); color:var(--text); font-family:var(--fb); font-size:14px; font-weight:500; cursor:pointer; }
+  .btn-danger { background:transparent; border:1px solid var(--red2); color:var(--red); padding:10px 16px; border-radius:8px; font-family:var(--fb); font-size:13px; font-weight:500; cursor:pointer; }
+  .btn-outline { background:transparent; border:1px dashed var(--bord); color:var(--muted); padding:10px 16px; border-radius:8px; font-family:var(--fb); font-size:13px; cursor:pointer; width:100%; margin-top:10px; }
+
+  /* BACK */
+  .back { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--amber); background:none; border:none; cursor:pointer; padding:0; margin-bottom:16px; font-family:var(--fb); font-weight:500; }
+
+  /* NOTE DISPLAY */
+  .note-box { background:rgba(245,158,11,.07); border:1px solid rgba(245,158,11,.2); border-radius:var(--rs); padding:12px 14px; margin-top:10px; font-size:13px; color:var(--text); line-height:1.5; display:flex; gap:10px; align-items:flex-start; }
+
+  /* NOTE MODAL */
+  .ov { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:400; display:none; align-items:flex-end; }
+  .ov.open { display:flex; }
+  .modal { background:var(--bg2); border-radius:var(--r) var(--r) 0 0; width:100%; max-height:88vh; overflow-y:auto; padding:20px; animation:su .3s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes su { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .mh { width:40px; height:4px; background:var(--bord); border-radius:100px; margin:0 auto 20px; }
+  .mt { font-family:var(--fd); font-size:20px; font-weight:700; margin-bottom:4px; }
+  .ms { font-size:13px; color:var(--muted); margin-bottom:18px; }
+
+  /* NOTES LIST */
+  .nli { padding:14px 0; border-bottom:1px solid var(--bord); cursor:pointer; }
+  .nli:active { opacity:.7; }
+  .ndate { font-size:11px; color:var(--text2); font-weight:600; text-transform:uppercase; letter-spacing:.8px; margin-bottom:4px; }
+  .nres  { font-size:13px; margin-bottom:4px; }
+  .nnote { font-size:14px; color:var(--text); line-height:1.5; }
+
+  /* BACKUP SECTION */
+  .backup-row { display:flex; gap:10px; }
+  .backup-btn { flex:1; padding:14px; border-radius:var(--rs); border:1px solid var(--bord); background:var(--bg3); color:var(--text); font-family:var(--fb); font-size:13px; font-weight:600; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; transition:all .2s; }
+  .backup-btn:active { transform:scale(.97); background:var(--bg4); }
+  .backup-btn .bi { font-size:24px; }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--bg4); border:1px solid var(--bord); border-radius:100px; padding:12px 20px; font-size:14px; font-weight:500; color:var(--text); z-index:600; opacity:0; transition:all .3s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* EMPTY */
+  .empty { text-align:center; padding:40px 20px; color:var(--muted); }
+  .empty .ei { font-size:48px; margin-bottom:12px; }
+  .empty .et { font-family:var(--fd); font-size:18px; color:var(--text); margin-bottom:6px; }
+  .empty .ed { font-size:13px; line-height:1.5; }
+
+  /* CONFETTI */
+  .cp { position:fixed; border-radius:2px; pointer-events:none; z-index:999; animation:cf linear forwards; }
+  @keyframes cf { 0%{opacity:1;transform:translateY(-20px) rotate(0deg)} 100%{opacity:0;transform:translateY(100vh) rotate(720deg)} }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">🔥 Mis Retos</div>
+  <div class="hdr-date" id="hdrDate"></div>
+</div>
+
+<!-- SCREENS -->
+<div id="sc-home" class="sc active"><div id="homeContent"></div></div>
+
+<div id="sc-cal" class="sc"><div id="calContent"></div></div>
+
+<div id="sc-notes" class="sc"><div id="notesContent"></div></div>
+
+<div id="sc-new" class="sc">
+  <div class="sec-t">Nuevo Reto</div>
+  <div class="card">
+    <div class="fg">
+      <label class="fl">Elige un emoji</label>
+      <div class="eg" id="emojiGrid"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Nombre del reto</label>
+      <input class="fi" id="newName" placeholder="Ej: Sin dulces, Ejercicio..." maxlength="30">
+    </div>
+    <div class="fg">
+      <label class="fl">Descripción (opcional)</label>
+      <textarea class="fta" id="newDesc" placeholder="¿Qué quieres lograr?"></textarea>
+    </div>
+    <button class="btn" onclick="createChallenge()">🚀 Crear Reto</button>
+  </div>
+</div>
+
+<div id="sc-settings" class="sc">
+  <div class="sec-t">Ajustes</div>
+
+  <!-- BACKUP -->
+  <div class="card">
+    <div class="card-t">💾 Copia de seguridad</div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Exporta tus datos a un archivo en tu teléfono. Si cambias de dispositivo o reinstalás la app, impórtalo y recuperas todo.</p>
+    <div class="backup-row">
+      <button class="backup-btn" onclick="exportData()">
+        <span class="bi">📤</span>
+        <span>Exportar</span>
+      </button>
+      <button class="backup-btn" onclick="document.getElementById('importFile').click()">
+        <span class="bi">📥</span>
+        <span>Importar</span>
+      </button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+
+  <div class="card">
+    <div class="card-t">Mis Retos activos</div>
+    <div id="settingsList"></div>
+  </div>
+  <div class="card">
+    <div class="card-t">Info</div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.8">
+      ✅ Datos guardados solo en tu teléfono<br>
+      ✅ Funciona 100% sin internet<br>
+      ✅ Nadie tiene acceso a tus datos
+    </p>
+    <div style="margin-top:16px">
+      <button class="btn-danger" onclick="confirmReset()" style="width:100%">🗑️ Borrar todos los datos</button>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <button class="nb active" onclick="goTo('home',this)"><span class="ni">🏠</span><span>Inicio</span></button>
+  <button class="nb" onclick="goTo('cal',this)"><span class="ni">📅</span><span>Calendario</span></button>
+  <button class="nb" onclick="goTo('notes',this)"><span class="ni">📝</span><span>Notas</span></button>
+  <button class="nb" onclick="goTo('new',this)"><span class="ni">➕</span><span>Nuevo</span></button>
+  <button class="nb" onclick="goTo('settings',this)"><span class="ni">⚙️</span><span>Ajustes</span></button>
+</nav>
+
+<!-- NOTE MODAL -->
+<div class="ov" id="noteOv">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mt" id="mTitle"></div>
+    <div class="ms" id="mSub"></div>
+
+    <!-- PASO 1: marcar cumplió / no cumplió -->
+    <div id="mStep1">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">¿Cómo te fue este día?</p>
+      <div class="log-row">
+        <button class="log-btn lb-ok" onclick="mSetResult('ok')">✅ ¡Lo cumplí!</button>
+        <button class="log-btn lb-ko" onclick="mSetResult('ko')">❌ No lo cumplí</button>
+      </div>
+    </div>
+
+    <!-- PASO 2: nota opcional -->
+    <div id="mStep2" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--rs);margin-bottom:16px;" id="mResultBadge"></div>
+      <div class="fg">
+        <label class="fl">Nota del día (opcional)</label>
+        <textarea class="fta" id="mNote" placeholder="¿Cómo te sentiste? ¿Qué pasó? Escribe lo que quieras..." style="min-height:100px"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn-sec" style="flex:1" onclick="mSave(false)">Guardar sin nota</button>
+        <button class="btn" style="flex:1;margin-top:0" onclick="mSave(true)">💾 Guardar</button>
+      </div>
+      <button class="btn-outline" onclick="mCancel()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════
+const KEY = 'misretos_v4';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || {challenges:[], logs:{}}; }
+  catch { return {challenges:[], logs:{}}; }
+}
+function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+
+// Estructura de cada entrada en logs:
+// logs[challengeId][dateKey] = { result: 'ok'|'ko', note: '' }
+
+const todayK = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+const dKey = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+const MES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESm = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIA  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+// ════════════════════════════════════════
+//  STATS
+// ════════════════════════════════════════
+function stats(id) {
+  const logs = load().logs[id] || {};
+  const entries = Object.entries(logs).sort(([a],[b]) => a.localeCompare(b));
+  let long=0, tmp=0, ok=0, total=0, notes=0;
+  for (const [,v] of entries) {
+    if (!v) continue;
+    total++;
+    if (v.note) notes++;
+    if (v.result==='ok') { ok++; tmp++; long=Math.max(long,tmp); } else tmp=0;
+  }
+  const now = new Date();
+  let cur = 0;
+  for (let i=0; i<365; i++) {
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    const k = dKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const e = logs[k];
+    if (e?.result==='ok') cur++;
+    else if (e?.result==='ko') break;
+    else if (i===0) continue;
+    else break;
+  }
+  return { cur, long, ok, total, notes, rate: total>0 ? Math.round(ok/total*100) : 0 };
+}
+
+function fDate(k) {
+  const [y,m,d] = k.split('-');
+  return `${parseInt(d)} de ${MESm[parseInt(m)-1]} ${y}`;
+}
+
+// ════════════════════════════════════════
+//  HOME
+// ════════════════════════════════════════
+function renderHome() {
+  const data = load();
+  const el = document.getElementById('homeContent');
+  const now = new Date();
+  document.getElementById('hdrDate').textContent = `${DIA[now.getDay()]}, ${now.getDate()} de ${MESm[now.getMonth()]}`;
+
+  if (!data.challenges.length) {
+    el.innerHTML = `<div class="empty" style="margin-top:40px">
+      <div class="ei">🎯</div>
+      <div class="et">¡Crea tu primer reto!</div>
+      <div class="ed">Toca el <strong>+</strong> de abajo para empezar</div>
+    </div>`;
+    return;
+  }
+
+  // Semana
+  let week = '';
+  for (let i=6; i>=0; i--) {
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    const k = dKey(d.getFullYear(), d.getMonth(), d.getDate());
+    const hasOk   = data.challenges.some(c => (data.logs[c.id]||{})[k]?.result==='ok');
+    const hasKo   = data.challenges.some(c => (data.logs[c.id]||{})[k]?.result==='ko');
+    const hasNote = data.challenges.some(c => (data.logs[c.id]||{})[k]?.note);
+    const cls = i===0?'tod':hasOk?'ok':hasKo?'ko':'emp';
+    week += `<div class="wdi">
+      <span class="wdl">${DIA[d.getDay()]}</span>
+      <div class="wdn ${cls}">${d.getDate()}${hasNote?'<span class="wndot"></span>':''}</div>
+    </div>`;
+  }
+
+  // Tarjetas de retos
+  let cards = '';
+  for (const c of data.challenges) {
+    const s = stats(c.id);
+    const e = (data.logs[c.id]||{})[todayK()];
+    const stxt = e?.result==='ok' ? '✅ Cumplido hoy'
+               : e?.result==='ko' ? '❌ No cumplido hoy'
+               : '⏳ Sin registrar hoy';
+    const scol = e?.result==='ok' ? 'var(--green)'
+               : e?.result==='ko' ? 'var(--red)'
+               : 'var(--muted)';
+    cards += `
+      <div class="chcard" onclick="openDetail('${c.id}')">
+        <div class="chh">
+          <span class="che">${c.emoji}</span>
+          <div class="chi">
+            <div class="chn">${c.name}</div>
+            <div class="chs" style="color:${scol}">${stxt}${e?.note?' 📝':''}</div>
+          </div>
+          <div class="sbadge">🔥 ${s.cur}</div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="pl"><span>${s.ok} días cumplidos</span><span>${s.rate}%</span></div>
+          <div class="pw"><div class="pb" style="width:${s.rate}%"></div></div>
+        </div>
+        <div class="chst">
+          <div class="sti"><span class="stv">${s.cur}🔥</span><span class="stl">Racha</span></div>
+          <div class="sti"><span class="stv">${s.long}</span><span class="stl">Mejor</span></div>
+          <div class="sti"><span class="stv">${s.total}</span><span class="stl">Registros</span></div>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="card" style="margin-top:8px">
+      <div class="card-t">Últimos 7 días</div>
+      <div class="ws">${week}</div>
+    </div>
+    <div class="sec-t">Mis Retos</div>
+    ${cards}`;
+}
+
+// ════════════════════════════════════════
+//  DETAIL
+// ════════════════════════════════════════
+function openDetail(id) {
+  const data = load();
+  const c = data.challenges.find(x=>x.id===id);
+  if (!c) return;
+  const s = stats(id);
+  const today = todayK();
+  const e = (data.logs[id]||{})[today];
+  const now = new Date();
+
+  const okCls = `log-btn lb-ok${e?.result==='ok'?' sel':''}`;
+  const koCls = `log-btn lb-ko${e?.result==='ko'?' sel':''}`;
+
+  // Nota de hoy si existe
+  const noteHtml = e?.note
+    ? `<div class="note-box"><span>📝</span><span>${e.note}</span></div>`
+    : '';
+
+  // Botón editar/añadir nota si ya hay registro
+  const editNoteBtn = e
+    ? `<button class="btn-outline" onclick="openModal('${id}','${today}',null)">✏️ ${e.note?'Editar nota':'Añadir nota del día'}</button>`
+    : '';
+
+  document.getElementById('homeContent').innerHTML = `
+    <button class="back" onclick="renderHome()">← Volver</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span style="font-size:40px">${c.emoji}</span>
+      <div>
+        <div style="font-family:var(--fd);font-size:22px;font-weight:700">${c.name}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">${c.desc||'Sin descripción'}</div>
+      </div>
+    </div>
+
+    <div class="sg">
+      <div class="sc2"><span class="bn">${s.cur}🔥</span><span class="sl">Racha actual</span></div>
+      <div class="sc2"><span class="bn">${s.long}</span><span class="sl">Mejor racha</span></div>
+      <div class="sc2"><span class="bn">${s.ok}</span><span class="sl">Días cumplidos</span></div>
+      <div class="sc2"><span class="bn">${s.rate}%</span><span class="sl">Tasa de éxito</span></div>
+    </div>
+
+    <!-- REGISTRO DE HOY — lo más importante -->
+    <div class="card">
+      <div class="card-t">Registrar hoy — ${fDate(today)}</div>
+      <div class="log-row">
+        <button class="${okCls}" onclick="openModal('${id}','${today}','ok')">✅ ¡Lo cumplí!</button>
+        <button class="${koCls}" onclick="openModal('${id}','${today}','ko')">❌ No lo cumplí</button>
+      </div>
+      ${noteHtml}
+      ${editNoteBtn}
+    </div>
+
+    <!-- MINI CALENDARIO -->
+    <div class="card">
+      <div class="card-t">Este mes</div>
+      ${buildCal(id, now.getFullYear(), now.getMonth(), 'detail')}
+      <div class="leg">
+        <div class="legi"><div class="legd" style="background:rgba(34,197,94,.4);border:1px solid var(--green2)"></div>Cumplido</div>
+        <div class="legi"><div class="legd" style="background:rgba(239,68,68,.3);border:1px solid var(--red2)"></div>No cumplido</div>
+        <div class="legi"><span style="font-size:9px">🟡</span>Con nota</div>
+      </div>
+    </div>`;
+}
+
+// ════════════════════════════════════════
+//  MODAL DE NOTA
+// ════════════════════════════════════════
+let M = { id:null, dateK:null, result:null };
+
+function openModal(id, dateK, forcedResult) {
+  const data = load();
+  const c = data.challenges.find(x=>x.id===id);
+  const e = (data.logs[id]||{})[dateK];
+
+  M = { id, dateK, result: forcedResult || e?.result || null };
+
+  document.getElementById('mTitle').textContent = `${c.emoji} ${c.name}`;
+  document.getElementById('mSub').textContent   = fDate(dateK);
+  document.getElementById('mNote').value        = e?.note || '';
+
+  // Si ya tiene resultado y tocamos el mismo botón → desmarcar
+  if (forcedResult && e?.result && forcedResult === e.result) {
+    const data2 = load();
+    if (!data2.logs[id]) data2.logs[id] = {};
+    delete data2.logs[id][dateK];
+    save(data2);
+    showToast('🗑️ Registro eliminado');
+    refreshCurrent(id);
+    return;
+  }
+
+  if (forcedResult === null) {
+    // Solo editar nota — saltar paso 1
+    document.getElementById('mStep1').style.display = 'none';
+    document.getElementById('mStep2').style.display = 'block';
+    setBadge(M.result);
+  } else {
+    // Nuevo registro — ir directo al paso 2 con resultado ya definido
+    M.result = forcedResult;
+    document.getElementById('mStep1').style.display = 'none';
+    document.getElementById('mStep2').style.display = 'block';
+    setBadge(forcedResult);
+  }
+
+  document.getElementById('noteOv').classList.add('open');
+}
+
+function mSetResult(r) {
+  M.result = r;
+  setBadge(r);
+  document.getElementById('mStep1').style.display = 'none';
+  document.getElementById('mStep2').style.display = 'block';
+}
+
+function setBadge(result) {
+  const b = document.getElementById('mResultBadge');
+  if (!result) { b.style.display='none'; return; }
+  b.style.display = 'flex';
+  if (result==='ok') {
+    b.style.cssText += ';background:rgba(34,197,94,.15);border:1px solid var(--green2);color:var(--green)';
+    b.textContent = '✅ Marcado como: ¡Lo cumplí!';
+  } else {
+    b.style.cssText += ';background:rgba(239,68,68,.1);border:1px solid var(--red2);color:var(--red)';
+    b.textContent = '❌ Marcado como: No lo cumplí';
+  }
+}
+
+function mSave(withNote) {
+  if (!M.result) { closeModal(); return; }
+  const data = load();
+  if (!data.logs[M.id]) data.logs[M.id] = {};
+  const existingNote = data.logs[M.id][M.dateK]?.note || '';
+  const note = withNote ? document.getElementById('mNote').value.trim() : existingNote;
+  data.logs[M.id][M.dateK] = { result: M.result, note };
+  save(data);
+  closeModal();
+  if (M.result==='ok') {
+    showToast(note ? '✅ ¡Cumplido y anotado! 📝' : '✅ ¡Genial, sigue así!');
+    confetti();
+  } else {
+    showToast(note ? '💪 Anotado. ¡Mañana mejor!' : '💪 Mañana es otro día');
+  }
+  refreshCurrent(M.id);
+}
+
+function mCancel() { closeModal(); }
+
+function closeModal() {
+  document.getElementById('noteOv').classList.remove('open');
+  document.getElementById('mStep1').style.display = 'block';
+  document.getElementById('mStep2').style.display = 'none';
+  M = { id:null, dateK:null, result:null };
+}
+
+document.getElementById('noteOv').addEventListener('click', function(e) {
+  if (e.target===this) closeModal();
+});
+
+function refreshCurrent(id) {
+  if (document.getElementById('sc-home').classList.contains('active'))    openDetail(id);
+  if (document.getElementById('sc-cal').classList.contains('active'))     renderCal();
+  if (document.getElementById('sc-notes').classList.contains('active'))   renderNotes();
+}
+
+// ════════════════════════════════════════
+//  CALENDAR
+// ════════════════════════════════════════
+function buildCal(id, year, month, ctx) {
+  const logs = load().logs[id] || {};
+  const today = todayK();
+  const first = new Date(year, month, 1).getDay();
+  const days  = new Date(year, month+1, 0).getDate();
+
+  let cells = '';
+  for (let i=0; i<first; i++) cells += `<div class="cd emp"></div>`;
+  for (let d=1; d<=days; d++) {
+    const k = dKey(year, month, d);
+    const future = k > today;
+    const e = logs[k];
+    let cls = 'cd';
+    if (future)        cls += ' fut';
+    else if (e?.result==='ok') cls += ' ok';
+    else if (e?.result==='ko') cls += ' ko';
+    else               cls += ' avl';
+    if (k===today)     cls += ' tod';
+    const nd = e?.note ? `<span class="ndot"></span>` : '';
+    cells += `<div class="${cls}" onclick="openModal('${id}','${k}',null)">${d}${nd}</div>`;
+  }
+
+  return `
+    <div style="text-align:center;font-family:var(--fd);font-size:16px;font-weight:700;margin-bottom:12px">${MES[month]} ${year}</div>
+    <div class="calw">${['D','L','M','X','J','V','S'].map(d=>`<div class="calwd">${d}</div>`).join('')}</div>
+    <div class="calg">${cells}</div>`;
+}
+
+let CS = { year:new Date().getFullYear(), month:new Date().getMonth(), id:null };
+
+function renderCal() {
+  const data = load();
+  const el = document.getElementById('calContent');
+  if (!data.challenges.length) {
+    el.innerHTML = `<div class="empty" style="margin-top:60px"><div class="ei">📅</div><div class="et">Sin retos aún</div></div>`;
+    return;
+  }
+  if (!CS.id) CS.id = data.challenges[0].id;
+  const s = stats(CS.id);
+
+  const pills = data.challenges.map(c =>
+    `<div class="pill${c.id===CS.id?' active':''}" onclick="csSelect('${c.id}')">${c.emoji} ${c.name}</div>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="pills" style="margin-top:8px">${pills}</div>
+    <div class="card">
+      <div class="calh">
+        <button class="calnb" onclick="csNav(-1)">‹</button>
+        <span class="calm">${MES[CS.month]} ${CS.year}</span>
+        <button class="calnb" onclick="csNav(1)">›</button>
+      </div>
+      <div class="calw">${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div class="calwd">${d}</div>`).join('')}</div>
+      <div class="calg">${buildCalGrid(CS.id, CS.year, CS.month)}</div>
+      <div class="leg" style="margin-top:14px">
+        <div class="legi"><div class="legd" style="background:rgba(34,197,94,.4);border:1px solid var(--green2)"></div>Cumplido</div>
+        <div class="legi"><div class="legd" style="background:rgba(239,68,68,.3);border:1px solid var(--red2)"></div>No cumplido</div>
+        <div class="legi"><span style="font-size:9px">🟡</span>Con nota</div>
+      </div>
+    </div>
+    <div class="sg">
+      <div class="sc2"><span class="bn">${s.cur}🔥</span><span class="sl">Racha actual</span></div>
+      <div class="sc2"><span class="bn">${s.long}</span><span class="sl">Mejor racha</span></div>
+      <div class="sc2"><span class="bn">${s.ok}</span><span class="sl">Días cumplidos</span></div>
+      <div class="sc2"><span class="bn">${s.rate}%</span><span class="sl">Tasa de éxito</span></div>
+    </div>`;
+}
+
+function buildCalGrid(id, year, month) {
+  const logs = load().logs[id] || {};
+  const today = todayK();
+  const first = new Date(year, month, 1).getDay();
+  const days  = new Date(year, month+1, 0).getDate();
+  let cells = '';
+  for (let i=0; i<first; i++) cells += `<div class="cd emp"></div>`;
+  for (let d=1; d<=days; d++) {
+    const k = dKey(year, month, d);
+    const future = k > today;
+    const e = logs[k];
+    let cls = 'cd';
+    if (future) cls += ' fut';
+    else if (e?.result==='ok') cls += ' ok';
+    else if (e?.result==='ko') cls += ' ko';
+    else cls += ' avl';
+    if (k===today) cls += ' tod';
+    const nd = e?.note ? `<span class="ndot"></span>` : '';
+    cells += `<div class="${cls}" onclick="openModal('${id}','${k}',null)">${d}${nd}</div>`;
+  }
+  return cells;
+}
+
+function csSelect(id) { CS.id=id; renderCal(); }
+function csNav(d) {
+  CS.month+=d;
+  if (CS.month>11){CS.month=0;CS.year++;}
+  if (CS.month<0) {CS.month=11;CS.year--;}
+  renderCal();
+}
+
+// ════════════════════════════════════════
+//  NOTAS
+// ════════════════════════════════════════
+let NS = { id:null };
+
+function renderNotes() {
+  const data = load();
+  const el = document.getElementById('notesContent');
+  if (!data.challenges.length) {
+    el.innerHTML = `<div class="empty" style="margin-top:60px"><div class="ei">📝</div><div class="et">Sin retos aún</div></div>`;
+    return;
+  }
+  if (!NS.id) NS.id = data.challenges[0].id;
+  const c = data.challenges.find(x=>x.id===NS.id);
+  const logs = data.logs[NS.id] || {};
+  const pills = data.challenges.map(ch =>
+    `<div class="pill${ch.id===NS.id?' active':''}" onclick="nsSelect('${ch.id}')">${ch.emoji} ${ch.name}</div>`
+  ).join('');
+
+  const entries = Object.entries(logs)
+    .filter(([,v]) => v?.result)
+    .sort(([a],[b]) => b.localeCompare(a));
+
+  let list = entries.length
+    ? entries.map(([k,v]) => `
+        <div class="nli" onclick="openModal('${NS.id}','${k}',null)">
+          <div class="ndate">${fDate(k)}</div>
+          <div class="nres">${v.result==='ok'?'✅ Cumplido':'❌ No cumplido'}</div>
+          ${v.note
+            ? `<div class="nnote">📝 ${v.note}</div>`
+            : `<div style="font-size:12px;color:var(--bord)">Sin nota — toca para añadir</div>`}
+        </div>`).join('')
+    : `<div style="text-align:center;padding:30px 0;color:var(--muted);font-size:13px">Aún no hay registros</div>`;
+
+  el.innerHTML = `
+    <div class="pills" style="margin-top:8px">${pills}</div>
+    <div class="card">
+      <div class="card-t">${c.emoji} Historial — ${c.name}</div>
+      ${list}
+    </div>`;
+}
+
+function nsSelect(id) { NS.id=id; renderNotes(); }
+
+// ════════════════════════════════════════
+//  NUEVO RETO
+// ════════════════════════════════════════
+const EMOJIS = ['🍬','💪','🏃','📚','💧','🧘','🥗','😴','🚭','📵','🍺','🏋️','✍️','🎯','❤️','🌱','⚡','🧠','🎸','🌟','🦁','🌿','🔥','🍎','☕','🎮'];
+
+function renderEmoji() {
+  const g = document.getElementById('emojiGrid');
+  if (!g) return;
+  g.innerHTML = EMOJIS.map((e,i) =>
+    `<div class="eo${i===0?' sel':''}" onclick="selE(this)">${e}</div>`
+  ).join('');
+}
+function selE(el) { document.querySelectorAll('.eo').forEach(e=>e.classList.remove('sel')); el.classList.add('sel'); }
+function getEmoji() { return document.querySelector('.eo.sel')?.textContent || '🎯'; }
+
+function createChallenge() {
+  const name = document.getElementById('newName').value.trim();
+  if (!name) { showToast('⚠️ Escribe un nombre'); return; }
+  const data = load();
+  data.challenges.push({ id:'c_'+Date.now(), name, desc:document.getElementById('newDesc').value.trim(), emoji:getEmoji(), createdAt:todayK() });
+  save(data);
+  document.getElementById('newName').value = '';
+  document.getElementById('newDesc').value = '';
+  renderEmoji();
+  showToast('🎉 ¡Reto creado!');
+  confetti();
+  setTimeout(() => goTo('home', document.querySelectorAll('.nb')[0]), 500);
+}
+
+// ════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════
+function renderSettings() {
+  const data = load();
+  const el = document.getElementById('settingsList');
+  if (!data.challenges.length) { el.innerHTML=`<p style="color:var(--muted);font-size:13px">No tienes retos aún</p>`; return; }
+  el.innerHTML = data.challenges.map(c => {
+    const s = stats(c.id);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--bord)">
+      <span style="font-size:24px">${c.emoji}</span>
+      <div style="flex:1">
+        <div style="font-weight:600">${c.name}</div>
+        <div style="font-size:11px;color:var(--muted)">🔥${s.cur} racha · ${s.total} registros · 📝${s.notes} notas</div>
+      </div>
+      <button class="btn-danger" onclick="delC('${c.id}')">Borrar</button>
+    </div>`;
+  }).join('');
+}
+
+function delC(id) {
+  if (!confirm('¿Borrar este reto y todos sus datos?')) return;
+  const data = load();
+  data.challenges = data.challenges.filter(c=>c.id!==id);
+  delete data.logs[id];
+  save(data);
+  renderSettings();
+  showToast('🗑️ Reto eliminado');
+}
+
+function confirmReset() {
+  if (!confirm('¿Borrar TODO? No se puede deshacer.')) return;
+  localStorage.removeItem(KEY);
+  renderHome(); renderSettings();
+  showToast('🗑️ Todo borrado');
+}
+
+// ════════════════════════════════════════
+//  BACKUP — EXPORTAR / IMPORTAR
+// ════════════════════════════════════════
+function exportData() {
+  const data = load();
+  if (!data.challenges.length) { showToast('⚠️ No hay datos para exportar'); return; }
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const now  = new Date();
+  const fecha = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  a.href     = url;
+  a.download = `misretos_backup_${fecha}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Backup guardado en tu teléfono');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.challenges || !parsed.logs) {
+        showToast('❌ Archivo no válido');
+        return;
+      }
+      if (!confirm(`¿Importar backup? Esto reemplazará tus datos actuales.\n\nEl backup tiene ${parsed.challenges.length} reto(s).`)) return;
+      save(parsed);
+      renderHome();
+      renderSettings();
+      showToast('📥 ¡Datos importados correctamente!');
+      confetti();
+    } catch {
+      showToast('❌ Error al leer el archivo');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ════════════════════════════════════════
+//  NAV
+// ════════════════════════════════════════
+function goTo(name, btn) {
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sc-'+name).classList.add('active');
+  const map = {home:0,cal:1,notes:2,new:3,settings:4};
+  if (btn) btn.classList.add('active');
+  else if (map[name]!==undefined) document.querySelectorAll('.nb')[map[name]].classList.add('active');
+  if (name==='home')     renderHome();
+  if (name==='cal')      renderCal();
+  if (name==='notes')    renderNotes();
+  if (name==='new')      renderEmoji();
+  if (name==='settings') renderSettings();
+}
+
+// ════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+function confetti() {
+  const cols = ['#f59e0b','#ea580c','#22c55e','#fbbf24','#f97316'];
+  for (let i=0; i<20; i++) setTimeout(()=>{
+    const p = document.createElement('div');
+    p.className = 'cp';
+    p.style.cssText = `left:${Math.random()*100}vw;top:-10px;background:${cols[~~(Math.random()*cols.length)]};animation-duration:${1.5+Math.random()}s;width:${6+Math.random()*6}px;height:${6+Math.random()*6}px;`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 3000);
+  }, i*55);
+}
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+(function() {
+  const now = new Date();
+  document.getElementById('hdrDate').textContent = `${DIA[now.getDay()]}, ${now.getDate()} de ${MESm[now.getMonth()]}`;
+  renderHome();
+})();
+</script>
+</body>
+</html>
